@@ -1,17 +1,27 @@
 
-load data/data.mat;
-clear h;
+% load data/data.mat;
+% clear h;
 
-X = X';
-X = [X,Y];
-X = [X;X];
-Y = [Y;Y];
+% X = X';
+% X = [X,Y];
+% X = [X;X];
+% Y = [Y;Y];
 
-h = Hippocampus(20 , 3, 0.5);
-% answers = [];
-for i = 1:30 %size(X,1)
+clear;
+% X = csvread('data/data.csv');
+load 'data/data.mat';
+
+h = Hippocampus(500, size(X, 2), 0.5);
+% Y = sum(X(:, 1:5), 2);
+Y = X(:, 1);
+answers = [];
+for i = 1:size(X,1)
+	% drawnow('update')
 	ed = h.addData(X(i,:),Y(i));
-	% answers = [answers, ed];
+	if(ed)
+		fprintf('DANGER PREDICTED! Instance: %d\n', i);
+	end
+	answers = [answers, ed];
 end
 
 % load net.mat;

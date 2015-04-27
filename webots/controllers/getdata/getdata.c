@@ -10,113 +10,98 @@
 #include <webots/robot.h>
 #include <webots/differential_wheels.h>
 #include <webots/distance_sensor.h>
-#include <webots/camera.h>
+#include <webots/touch_sensor.h> 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#define MAX_SENSOR_NUMBER 16
-#define RANGE (1024 / 2)
-#define BOUND(x, a, b) (((x)<(a))?(a):((x)>(b))?(b):(x))
 
-static WbDeviceTag sensors[MAX_SENSOR_NUMBER], camera;
-static double matrix[MAX_SENSOR_NUMBER][2];
-static int num_sensors = 16;
-static double range;
+#define MAX_DIST_SENSOR_NUMBER 16
+#define MAX_TOUCH_SENSOR_NUMBER 5
+#define RUN_TIME 9375
+// #define RANGE (1024 / 2)
+#define BOUND(x, a, b) (((x)<(a))?(a):((x)>(b))?(b):(x))
 static int time_step = 0;
 static double max_speed = 100.0;
 
-/* We use this variable to enable a camera device if the robot has one. */
-static int camera_enabled;
 
-static void initialize()
-{
-    /* necessary to initialize Webots */
-    wb_robot_init();
-
-    time_step = wb_robot_get_basic_time_step();
-
-    const char *robot_name = wb_robot_get_name();
-
-    const char pioneer2_name[] = "ds0";
-    double pioneer2_matrix[16][2] =
-        { {-1, 15}, {-3, 13}, {-3, 8}, {-2, 7}, {-3, -4}, {-4, -2}, {-3, -2},
-        {-1, -1}, {-1, -1}, {-2, -3}, {-2, -4}, {4, -3}, {7, -5}, {7, -3},
-        {10, -2}, {11, -1} };
-
-    char sensors_name[5];
-    double (*temp_matrix)[2];
-
-    camera_enabled = 0;
-    range = RANGE;
-
-    sprintf(sensors_name, "%s", pioneer2_name);
-    temp_matrix = pioneer2_matrix;
+WbDeviceTag* initDistanceSensors () {
+    char *sensor_names[] = {"ds0", "ds1", "ds2", "ds3", "ds4", "ds5", "ds6", "ds7", "ds8", "ds9", "ds10", "ds11", "ds12", "ds13", "ds14", "ds15"};
+    static WbDeviceTag sensors[MAX_DIST_SENSOR_NUMBER];
 
     int i;
-    for (i = 0; i < num_sensors; i++) {
-        sensors[i] = wb_robot_get_device(sensors_name);
+    for (i = 0; i < MAX_DIST_SENSOR_NUMBER; i++) {
+        sensors[i] = wb_robot_get_device(sensor_names[i]);
         wb_distance_sensor_enable(sensors[i], time_step);
-
-        if ((i + 1) >= 10) {
-            sensors_name[2] = '1';
-            sensors_name[3]++;
-
-            if ((i + 1) == 10) {
-                sensors_name[3] = '0';
-                sensors_name[4] = '\0';
-            }
-        } else {
-            sensors_name[2]++;
-        }
-
-        int j;
-        for (j = 0; j < 2; j++) {
-            matrix[i][j] = temp_matrix[i][j];
-        }
     }
 
-    printf("The %s robot is initialized, it uses %d distance sensors\n", robot_name, num_sensors);
+    return sensors;
+}
+
+WbDeviceTag* initTouchSensors () {
+    char *sensor_names[] = {"ts_front_left", "ts_left", "ts_back", "ts_right", "ts_front_right"};
+    static WbDeviceTag sensors[MAX_TOUCH_SENSOR_NUMBER];
+
+    int i;
+    for (i = 0; i < MAX_TOUCH_SENSOR_NUMBER; i++) {
+        sensors[i] = wb_robot_get_device(sensor_names[i]);
+        wb_touch_sensor_enable(sensors[i], time_step);
+    }
+
+    return sensors;
 }
 
 int main()
 {
-  initialize();
+    wb_robot_init();
+    time_step = wb_robot_get_basic_time_step();
 
-  while (wb_robot_step(time_step)!=-1) {
+    WbDeviceTag * touch_sensors = initTouchSensors();
+    WbDeviceTag * dist_sensors = initDistanceSensors();
+
+    FILE *file;
+    // data.csv contains 23 columns, which are, in the following order:
+    // 5 touch sensors input (ts_front_left, ts_left, ts_back, ts_right, ts_front_right)
+    // 16 distance sensors (from ds0 to ds15)
+    // 2 set wheel speed (left and right)
+    file=fopen("../../../data/data2.csv", "w");
+    double matrix[5][2] = {{-10, 35}, {-7, 2}, {-7, -7}, {2, -7}, {35, -10}};
+    double touch_value[MAX_TOUCH_SENSOR_NUMBER];
+    double dist_value[MAX_DIST_SENSOR_NUMBER];
+    double speed[2] = {0,0};
     int i, j;
-    double speed[2];
-    double sensors_value[MAX_SENSOR_NUMBER];
+    int timecounter = 0;
 
-    for (i = 0; i < num_sensors; i++) {
-        sensors_value[i] = wb_distance_sensor_get_value(sensors[i]);
-    }
+    // while (wb_robot_step(time_step)!=-1) {
+    for (timecounter = 0; timecounter < RUN_TIME; timecounter++){
+        wb_robot_step(time_step);
+        speed[0] = 0;
+        speed[1] = 0;
+        printf("Time step: %d\n", timecounter);
 
-    /*
-     * The Braitenberg algorithm is really simple, it simply computes the
-     * speed of each wheel by summing the value of each sensor multiplied by
-     * its corresponding weight. That is why each sensor must have a weight 
-     * for each wheel.
-     */
-    for (i = 0; i < 2; i++) {
-        speed[i] = 0.0;
+        for (i = 0; i < MAX_TOUCH_SENSOR_NUMBER; i++) {
+            touch_value[i] = wb_touch_sensor_get_value(touch_sensors[i]);
+            fprintf(file, "%.0f,", touch_value[i]);
+            for(j = 0; j < 2; j++){
+                speed[j] += matrix[i][j] * (1.0 - touch_value[i]);
+            }
+        }
 
-        for (j = 0; j < num_sensors; j++) {
-
-            /* 
-             * We need to recenter the value of the sensor to be able to get
-             * negative values too. This will allow the wheels to go 
-             * backward too.
-             */
-            speed[i] += matrix[j][i] * (1.0 - (sensors_value[j] / range));
+        for (i = 0; i < MAX_DIST_SENSOR_NUMBER; i++) {
+            dist_value[i] = wb_distance_sensor_get_value(dist_sensors[i]);
+            fprintf(file, "%.2f,", dist_value[i]);
         }
 
         speed[i] = BOUND(speed[i], -max_speed, max_speed);
+        wb_differential_wheels_set_speed(speed[0], speed[1]);
+        fprintf(file, "%.1f,%.1f", speed[0], speed[1]);
+        fprintf(file, "\n");
     }
+    wb_robot_step(time_step);
+    wb_differential_wheels_set_speed(0,0);
+    // wb_differential_wheels_set_speed(0,0);
+    // wb_differential_wheels_set_speed(0,0);
+    fclose(file);
 
-    /* Set the motor speeds */
-    wb_differential_wheels_set_speed(speed[0], speed[1]);
-  }
-
-  return 0;
+    return 0;
 }

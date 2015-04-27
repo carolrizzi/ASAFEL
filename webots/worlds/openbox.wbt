@@ -684,7 +684,7 @@ DEF PIONEER2 DifferentialWheels {
     density -1
     mass 0.5
   }
-  controller "controller_getData"
+  controller "getdata"
   axleLength 0.32
   wheelRadius 0.0825
   speedUnit 0.1

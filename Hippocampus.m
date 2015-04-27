@@ -11,8 +11,12 @@ classdef Hippocampus < handle
 		outX = [];
 		outY = [NaN];
 
+		tempX = [];
+
 		% Control Variables
 		windowSize;
+		updateInterval = 100;
+		count = 0;
 		numAttributes;
 		threshold;
 		sumX;
@@ -47,7 +51,6 @@ classdef Hippocampus < handle
 		end
 
 		function eminentDanger = addData (this, x, y)
-			% disp('addData2');
 			eminentDanger = 0;
 			xSize = size(this.inX, 1);
 			if ~xSize || mod(xSize, this.windowSize)
@@ -57,27 +60,25 @@ classdef Hippocampus < handle
 			end
 
 			y = y >= this.threshold;
-			instance = this.sumX / this.windowSize
+			instance = this.sumX / this.windowSize;
 
 			if y && ~this.danger % if high adrenaline and robot is not currently in a danger situation
-				disp('UPDATE TREE DANGER')
+				this.count = 0;
 				this.updateTree(instance, y);
 				this.danger = true;
 			end
 
 			if ~y % if low adrenaline 
 				if this.danger
-					disp('SET DANGER FALSE')
 					this.danger = false;
 				end
 
-				if ~ismember(instance, this.outX, 'rows') % avoid unnecessary retraining of tree with redundant instances
-					disp('UPDATE TREE NOT DANGER');
+				if(this.count >= this.updateInterval)
+					this.count = 0;
 					this.updateTree(instance, y);
-				else % if tree has been already trained with this instance, then predict it
+				else
+					this.count = this.count + 1;
 					eminentDanger = this.tree.predict(instance);
-					disp('PREDICTION');
-					disp(eminentDanger);
 				end
 			end
 

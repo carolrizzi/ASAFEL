@@ -11,18 +11,22 @@ clear;
 % X = csvread('data/data.csv');
 load 'data/data.mat';
 
+X = [X(:, 1), X(:, 3)];
+
 h = Hippocampus(500, size(X, 2), 0.5);
 % Y = sum(X(:, 1:5), 2);
-Y = X(:, 1);
+% Y = X(:, 1);
 answers = [];
 for i = 1:size(X,1)
 	% drawnow('update')
 	ed = h.addData(X(i,:),Y(i));
-	if(ed)
-		fprintf('DANGER PREDICTED! Instance: %d\n', i);
-	end
+	% if(ed)
+	% 	fprintf('DANGER PREDICTED! Instance: %d\n', i);
+	% end
 	answers = [answers, ed];
 end
+
+disp('FINISHED');
 
 % load net.mat;
 

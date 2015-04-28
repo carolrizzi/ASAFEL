@@ -47,7 +47,7 @@ classdef Hippocampus < handle
 			this.numAttributes = numAttributes;
 			this.sumX = zeros(1, this.numAttributes);
 			this.threshold = threshold;
-			this.outX = NaN(1, numAttributes);
+			this.outX = NaN(1, numAttributes*2);
 		end
 
 		function eminentDanger = addData (this, x, y)
@@ -61,6 +61,7 @@ classdef Hippocampus < handle
 
 			y = y >= this.threshold;
 			instance = this.sumX / this.windowSize;
+			instance = [instance, skewness(this.inX)];
 
 			if y && ~this.danger % if high adrenaline and robot is not currently in a danger situation
 				this.count = 0;
@@ -87,6 +88,8 @@ classdef Hippocampus < handle
 		end
 
 		function updateTree (this, x, y)
+			% size(this.outX)
+			% size(x)
 			this.outX = [this.outX; x];
 			this.outY = [this.outY; y];
 			this.tree = fitctree(this.outX, this.outY);

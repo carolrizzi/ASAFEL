@@ -58,13 +58,14 @@ int main()
 
     WbDeviceTag * touch_sensors = initTouchSensors();
     WbDeviceTag * dist_sensors = initDistanceSensors();
+    wb_robot_keyboard_enable(time_step);
 
     FILE *file;
     // data.csv contains 23 columns, which are, in the following order:
     // 5 touch sensors input (ts_front_left, ts_left, ts_back, ts_right, ts_front_right)
     // 16 distance sensors (from ds0 to ds15)
     // 2 set wheel speed (left and right)
-    file=fopen("../../../data/data2.csv", "w");
+    file=fopen("../../../data/data.csv", "w");
     double matrix[5][2] = {{-10, 35}, {-7, 2}, {-7, -7}, {2, -7}, {35, -10}};
     double touch_value[MAX_TOUCH_SENSOR_NUMBER];
     double dist_value[MAX_DIST_SENSOR_NUMBER];
@@ -78,6 +79,14 @@ int main()
         speed[0] = 0;
         speed[1] = 0;
         printf("Time step: %d\n", timecounter);
+
+        int key = wb_robot_keyboard_get_key();
+        if(key == WB_ROBOT_KEYBOARD_LEFT){
+            fprintf(file, "1,");
+            printf("LEFT");
+        }else{
+            fprintf(file, "0,");
+        }
 
         for (i = 0; i < MAX_TOUCH_SENSOR_NUMBER; i++) {
             touch_value[i] = wb_touch_sensor_get_value(touch_sensors[i]);
@@ -95,6 +104,14 @@ int main()
         speed[i] = BOUND(speed[i], -max_speed, max_speed);
         wb_differential_wheels_set_speed(speed[0], speed[1]);
         fprintf(file, "%.1f,%.1f", speed[0], speed[1]);
+
+        if(key == WB_ROBOT_KEYBOARD_RIGHT){
+            printf("RIGHT");
+            fprintf(file, ",1");
+        }else{
+            fprintf(file, ",0");
+        }
+
         fprintf(file, "\n");
     }
     wb_robot_step(time_step);
